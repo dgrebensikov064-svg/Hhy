@@ -1,0 +1,28 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+      - run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+      - run: unzip -q "$(ls ScreenAIv*.zip | sort -V | tail -1)"
+      - run: |
+          mkdir -p ScreenAI/app/src/main/assets/tessdata
+          for l in rus eng; do
+            curl -sL -o ScreenAI/app/src/main/assets/tessdata/$l.traineddata \
+              https://github.com/tesseract-ocr/tessdata_fast/raw/main/$l.traineddata
+          done
+      - working-directory: ScreenAI
+        run: gradle assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ScreenAI-apk
+          path: ScreenAI/app/build/outputs/apk/debug/app-debug.apk
